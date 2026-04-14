@@ -1,5 +1,8 @@
 package com.sellglass.order;
 
+import com.sellglass.branch.BranchRepository;
+import com.sellglass.catalog.product.Product;
+import com.sellglass.catalog.product.ProductRepository;
 import com.sellglass.catalog.variant.ProductVariant;
 import com.sellglass.catalog.variant.ProductVariantRepository;
 import com.sellglass.common.exception.AppException;
@@ -16,7 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +31,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductVariantRepository variantRepository;
+    private final BranchRepository branchRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public PageResponse<OrderResponse> findByCustomer(UUID customerId, Pageable pageable) {
@@ -45,23 +53,49 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse create(UUID customerId, OrderRequest request) {
-        // TODO: Validate branch exists
-        // TODO: Apply shipping fee logic based on orderType
+        branchRepository.findById(request.getBranchId())
+                .filter(com.sellglass.branch.Branch::isActive)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Branch not found or inactive"));
+
+        if (request.getOrderType() == OrderType.DELIVERY) {
+            if (request.getReceiverName() == null || request.getReceiverPhone() == null || request.getDeliveryAddress() == null) {
+                throw new AppException(ErrorCode.BAD_REQUEST, "Delivery order requires receiver name, phone and address");
+            }
+        }
+
+        List<UUID> variantIds = request.getItems().stream()
+                .map(OrderRequest.OrderItemRequest::getProductVariantId)
+                .collect(Collectors.toList());
+        List<ProductVariant> variants = variantRepository.findAllById(variantIds);
+        Map<UUID, ProductVariant> variantMap = variants.stream()
+                .collect(Collectors.toMap(ProductVariant::getId, v -> v));
+
+        Set<UUID> productIds = variants.stream()
+                .map(ProductVariant::getProductId)
+                .collect(Collectors.toSet());
+        Map<UUID, String> productNameMap = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, Product::getName));
 
         List<OrderItem> items = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
 
         for (OrderRequest.OrderItemRequest itemReq : request.getItems()) {
-            ProductVariant variant = variantRepository.findById(itemReq.getProductVariantId())
-                    .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
-                            "Variant not found: " + itemReq.getProductVariantId()));
+            ProductVariant variant = variantMap.get(itemReq.getProductVariantId());
+            if (variant == null) {
+                throw new AppException(ErrorCode.NOT_FOUND, "Variant not found: " + itemReq.getProductVariantId());
+            }
+
+            String productName = productNameMap.get(variant.getProductId());
+            if (productName == null) {
+                throw new AppException(ErrorCode.NOT_FOUND, "Product not found");
+            }
 
             BigDecimal itemSubtotal = variant.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
             subtotal = subtotal.add(itemSubtotal);
 
             OrderItem item = new OrderItem();
             item.setProductVariantId(variant.getId());
-            item.setProductName(""); // TODO: fetch from product
+            item.setProductName(productName);
             item.setVariantSku(variant.getSku());
             item.setUnitPrice(variant.getPrice());
             item.setQuantity(itemReq.getQuantity());
@@ -69,8 +103,9 @@ public class OrderServiceImpl implements OrderService {
             items.add(item);
         }
 
-        BigDecimal shippingFee = BigDecimal.ZERO;
-        // TODO: compute shippingFee based on orderType == DELIVERY
+        BigDecimal shippingFee = request.getOrderType() == OrderType.DELIVERY
+                ? new BigDecimal("30000")
+                : BigDecimal.ZERO;
 
         Order order = new Order();
         order.setCustomerId(customerId);
