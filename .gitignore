@@ -22,6 +22,7 @@ logs/
 # Environment / secrets
 .env
 .env.*
+application-dev.yml
 application-prod.yml
 application-local.yml
 
