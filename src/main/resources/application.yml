@@ -17,13 +17,13 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: 587
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    host: smtp.resend.com
+    port: 465
+    username: resend
+    password: ${RESEND_API_KEY:}
     properties:
       mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
+      mail.smtp.ssl.enable: true
 
 jwt:
   secret: ${JWT_SECRET:your-secret-key-at-least-256-bits-long-for-hs256}
