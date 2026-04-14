@@ -1,8 +1,25 @@
-# Gradle
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
+# ========================
+# BE (be/)
+# ========================
+be/.gradle/
+be/build/
+!be/gradle/wrapper/gradle-wrapper.jar
+be/nginx/certs/
+be/nginx/www/
+be/src/main/resources/application-dev.yml
+be/src/main/resources/application-prod.yml
+be/src/main/resources/application-local.yml
 
+# ========================
+# FE (fe/)
+# ========================
+fe/node_modules/
+fe/.next/
+fe/out/
+
+# ========================
+# Chung
+# ========================
 # IDE
 .idea/
 *.iml
@@ -23,11 +40,8 @@ logs/
 .env
 .env.*
 !.env.example
-nginx/certs/
-nginx/www/
-application-dev.yml
-application-prod.yml
-application-local.yml
+!be/.env.example
+!fe/.env.example
 
 # OS
 .DS_Store
