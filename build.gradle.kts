@@ -39,6 +39,7 @@ dependencies {
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
+    implementation("org.liquibase:liquibase-core")
 
     // Lombok
     compileOnly("org.projectlombok:lombok")
