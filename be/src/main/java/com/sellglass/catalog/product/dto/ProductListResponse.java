@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,22 +18,31 @@ public class ProductListResponse {
     private String name;
     private String slug;
     private UUID categoryId;
+    private String categoryName;
     private UUID brandId;
+    private String brandName;
     private String frameShape;
     private Product.Gender gender;
     private boolean isActive;
+    private String primaryImageUrl;
+    private BigDecimal minPrice;
     private LocalDateTime createdAt;
 
-    public static ProductListResponse from(Product product) {
+    public static ProductListResponse from(Product product, String primaryImageUrl, BigDecimal minPrice,
+                                           String categoryName, String brandName) {
         ProductListResponse response = new ProductListResponse();
         response.id = product.getId();
         response.name = product.getName();
         response.slug = product.getSlug();
         response.categoryId = product.getCategoryId();
+        response.categoryName = categoryName;
         response.brandId = product.getBrandId();
+        response.brandName = brandName;
         response.frameShape = product.getFrameShape();
         response.gender = product.getGender();
         response.isActive = product.isActive();
+        response.primaryImageUrl = primaryImageUrl;
+        response.minPrice = minPrice;
         response.createdAt = product.getCreatedAt();
         return response;
     }

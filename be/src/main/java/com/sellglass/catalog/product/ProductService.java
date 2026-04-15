@@ -10,7 +10,10 @@ import java.util.UUID;
 
 public interface ProductService {
 
-    PageResponse<ProductListResponse> findAll(Pageable pageable);
+    PageResponse<ProductListResponse> findAll(String search, UUID categoryId, UUID brandId, Product.Gender gender,
+                                              Pageable pageable);
+
+    ProductResponse findBySlug(String slug);
 
     ProductResponse findById(UUID id);
 

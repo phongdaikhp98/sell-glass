@@ -26,13 +26,23 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ProductListResponse>>> getAll(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt,desc") String sort) {
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) UUID brandId,
+            @RequestParam(required = false) Product.Gender gender) {
         String[] sortParts = sort.split(",");
         Sort.Direction direction = sortParts.length > 1 && "asc".equalsIgnoreCase(sortParts[1])
                 ? Sort.Direction.ASC : Sort.Direction.DESC;
         PageRequest pageable = PageRequest.of(page - 1, size, Sort.by(direction, sortParts[0]));
-        return ResponseEntity.ok(ApiResponse.success(productService.findAll(pageable)));
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.findAll(search, categoryId, brandId, gender, pageable)));
+    }
+
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getBySlug(@PathVariable String slug) {
+        return ResponseEntity.ok(ApiResponse.success(productService.findBySlug(slug)));
     }
 
     @GetMapping("/{id}")
