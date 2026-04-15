@@ -43,6 +43,7 @@ import {
   type AdminProductListItem,
 } from "@/lib/admin-product.api";
 import { getCategories, getBrands } from "@/lib/product.api";
+import ProductImageManager from "@/components/products/ProductImageManager";
 import type { Category, Brand } from "@/types";
 
 const formatVND = (price: number) =>
@@ -108,6 +109,9 @@ export default function AdminProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminProductListItem | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [imageProduct, setImageProduct] = useState<AdminProductListItem | null>(null);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -340,6 +344,16 @@ export default function AdminProductsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => {
+                            setImageProduct(product);
+                            setImageDialogOpen(true);
+                          }}
+                        >
+                          Ảnh
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => openEditDialog(product)}
                         >
                           Sửa
@@ -526,6 +540,21 @@ export default function AdminProductsPage() {
                 : "Thêm sản phẩm"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Management Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Quản lý hình ảnh</DialogTitle>
+          </DialogHeader>
+          {imageProduct && (
+            <ProductImageManager
+              productId={imageProduct.id}
+              productName={imageProduct.name}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
