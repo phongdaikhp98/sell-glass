@@ -134,9 +134,9 @@ public class OrderServiceImpl implements OrderService {
         order.setShippingFee(shippingFee);
         order.setTotal(subtotal.add(shippingFee));
         order.setNote(request.getNote());
-        order = orderRepository.save(order);
+        final Order savedOrder = orderRepository.save(order);
 
-        final UUID savedOrderId = order.getId();
+        final UUID savedOrderId = savedOrder.getId();
         items.forEach(item -> item.setOrderId(savedOrderId));
         orderItemRepository.saveAll(items);
 
@@ -150,7 +150,7 @@ public class OrderServiceImpl implements OrderService {
                         Map.of(
                                 "fullName", customer.getFullName(),
                                 "orderCode", orderCode,
-                                "total", order.getTotal(),
+                                "total", savedOrder.getTotal(),
                                 "items", items,
                                 "transferContent", orderCode,
                                 "bankInfo", "Vietcombank — 1234567890 — SELL GLASS"
@@ -161,7 +161,7 @@ public class OrderServiceImpl implements OrderService {
             log.warn("Failed to send order confirmation email: {}", e.getMessage());
         }
 
-        return OrderResponse.from(order, items, branch.getName());
+        return OrderResponse.from(savedOrder, items, branch.getName());
     }
 
     @Override
