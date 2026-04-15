@@ -9,11 +9,14 @@ import com.sellglass.catalog.variant.ProductVariantRepository;
 import com.sellglass.common.exception.AppException;
 import com.sellglass.common.exception.ErrorCode;
 import com.sellglass.common.response.PageResponse;
+import com.sellglass.customer.CustomerRepository;
+import com.sellglass.mail.MailService;
 import com.sellglass.order.dto.OrderRequest;
 import com.sellglass.order.dto.OrderResponse;
 import com.sellglass.order.dto.OrderStatusRequest;
 import com.sellglass.order.dto.PaymentStatusRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -36,6 +40,8 @@ public class OrderServiceImpl implements OrderService {
     private final ProductVariantRepository variantRepository;
     private final BranchRepository branchRepository;
     private final ProductRepository productRepository;
+    private final CustomerRepository customerRepository;
+    private final MailService mailService;
 
     @Override
     public PageResponse<OrderResponse> findByCustomer(UUID customerId, Pageable pageable) {
@@ -133,6 +139,27 @@ public class OrderServiceImpl implements OrderService {
         final UUID savedOrderId = order.getId();
         items.forEach(item -> item.setOrderId(savedOrderId));
         orderItemRepository.saveAll(items);
+
+        try {
+            customerRepository.findById(customerId).ifPresent(customer -> {
+                String orderCode = "SG-" + savedOrderId.toString().substring(0, 8).toUpperCase();
+                mailService.send(
+                        customer.getEmail(),
+                        "Xác nhận đơn hàng " + orderCode + " — Sell Glass",
+                        "emails/order-confirmation",
+                        Map.of(
+                                "fullName", customer.getFullName(),
+                                "orderCode", orderCode,
+                                "total", order.getTotal(),
+                                "items", items,
+                                "transferContent", orderCode,
+                                "bankInfo", "Vietcombank — 1234567890 — SELL GLASS"
+                        )
+                );
+            });
+        } catch (Exception e) {
+            log.warn("Failed to send order confirmation email: {}", e.getMessage());
+        }
 
         return OrderResponse.from(order, items, branch.getName());
     }

@@ -7,16 +7,21 @@ import com.sellglass.common.exception.AppException;
 import com.sellglass.common.exception.ErrorCode;
 import com.sellglass.customer.Customer;
 import com.sellglass.customer.CustomerRepository;
+import com.sellglass.mail.MailService;
 import com.sellglass.security.JwtTokenProvider;
 import com.sellglass.user.User;
 import com.sellglass.user.UserRepository;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -30,6 +35,11 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, String> redisTemplate;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final MailService mailService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     @Transactional
@@ -107,6 +117,44 @@ public class AuthServiceImpl implements AuthService {
         }
         String userId = jwtTokenProvider.getUserIdFromToken(accessToken);
         redisTemplate.delete(REFRESH_KEY_PREFIX + userId);
+    }
+
+    @Override
+    @Transactional
+    public void forgotPassword(String email) {
+        Customer customer = customerRepository.findByEmail(email).orElse(null);
+        if (customer == null) return; // silent — chống enumeration
+
+        passwordResetTokenRepository.deleteByCustomerId(customer.getId());
+
+        PasswordResetToken token = new PasswordResetToken();
+        token.setCustomerId(customer.getId());
+        token.setToken(UUID.randomUUID().toString().replace("-", ""));
+        token.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+        passwordResetTokenRepository.save(token);
+
+        String resetUrl = frontendUrl + "/reset-password?token=" + token.getToken();
+        mailService.send(email, "Đặt lại mật khẩu — Sell Glass", "emails/password-reset",
+                Map.of("fullName", customer.getFullName(), "resetUrl", resetUrl, "expiresInMinutes", 30));
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        PasswordResetToken prt = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new AppException(ErrorCode.BAD_REQUEST, "Invalid or expired token"));
+        if (prt.getUsedAt() != null)
+            throw new AppException(ErrorCode.BAD_REQUEST, "Token already used");
+        if (prt.getExpiresAt().isBefore(LocalDateTime.now()))
+            throw new AppException(ErrorCode.BAD_REQUEST, "Token expired");
+
+        Customer customer = customerRepository.findById(prt.getCustomerId())
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Customer not found"));
+        customer.setPasswordHash(passwordEncoder.encode(newPassword));
+        customerRepository.save(customer);
+
+        prt.setUsedAt(LocalDateTime.now());
+        passwordResetTokenRepository.save(prt);
     }
 
     private TokenResponse issueCustomerTokens(Customer customer) {

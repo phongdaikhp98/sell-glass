@@ -36,3 +36,14 @@ export async function loginStaff(
   );
   return res.data.data;
 }
+
+export async function forgotPassword(email: string): Promise<void> {
+  await api.post("/v1/auth/forgot-password", { email });
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string
+): Promise<void> {
+  await api.post("/v1/auth/reset-password", { token, newPassword });
+}

@@ -115,6 +115,13 @@ export default function LoginPage() {
           {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
         </Button>
 
+        <Link
+          href="/forgot-password"
+          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          Quên mật khẩu?
+        </Link>
+
         <button
           type="button"
           onClick={() => setIsStaff((prev) => !prev)}

@@ -1,7 +1,9 @@
 package com.sellglass.auth;
 
+import com.sellglass.auth.dto.ForgotPasswordRequest;
 import com.sellglass.auth.dto.LoginRequest;
 import com.sellglass.auth.dto.RegisterRequest;
+import com.sellglass.auth.dto.ResetPasswordRequest;
 import com.sellglass.auth.dto.TokenResponse;
 import com.sellglass.common.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -44,6 +46,18 @@ public class AuthController {
         if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
             authService.logout(authHeader.substring(7));
         }
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        authService.forgotPassword(req.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        authService.resetPassword(req.getToken(), req.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }
