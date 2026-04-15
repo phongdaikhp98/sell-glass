@@ -12,6 +12,7 @@ import com.sellglass.common.response.PageResponse;
 import com.sellglass.order.dto.OrderRequest;
 import com.sellglass.order.dto.OrderResponse;
 import com.sellglass.order.dto.OrderStatusRequest;
+import com.sellglass.order.dto.PaymentStatusRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -151,6 +152,19 @@ public class OrderServiceImpl implements OrderService {
                 .map(Branch::getName)
                 .orElse(null);
         return OrderResponse.from(order, items, branchName);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updatePaymentStatus(UUID orderId, PaymentStatusRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Order not found"));
+        order.setPaymentStatus(request.getPaymentStatus());
+        Order saved = orderRepository.save(order);
+        List<OrderItem> items = orderItemRepository.findByOrderId(saved.getId());
+        String branchName = branchRepository.findById(saved.getBranchId())
+                .map(Branch::getName).orElse(null);
+        return OrderResponse.from(saved, items, branchName);
     }
 
     private Map<UUID, List<OrderItem>> buildItemsMap(Page<Order> orderPage) {

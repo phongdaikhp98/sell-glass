@@ -73,3 +73,8 @@ export async function getCustomer(id: string): Promise<CustomerResponse> {
   const res = await api.get<ApiResponse<CustomerResponse>>(`/v1/customers/${id}`);
   return res.data.data;
 }
+
+export async function updatePaymentStatus(id: string, paymentStatus: string) {
+  const res = await api.patch(`/v1/admin/orders/${id}/payment-status`, { paymentStatus });
+  return res.data.data;
+}

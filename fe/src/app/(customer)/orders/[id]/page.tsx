@@ -157,6 +157,56 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
+        {/* Payment section */}
+        {order.paymentStatus === "PAID" ? (
+          <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+            <span className="text-lg">✅</span>
+            <span className="font-semibold text-green-800">Đã thanh toán</span>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-amber-400 bg-amber-50 p-4">
+            <h2 className="mb-3 font-medium text-amber-900">Thanh toán chuyển khoản</h2>
+            <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
+              <div className="flex-1 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ngân hàng</span>
+                  <span className="font-medium">Vietcombank</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Số tài khoản</span>
+                  <span className="font-medium">1234567890</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Chủ tài khoản</span>
+                  <span className="font-medium">SELL GLASS</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nội dung CK</span>
+                  <button
+                    className="font-bold tracking-wide text-amber-900 hover:underline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`SG-${order.id.slice(-4).toUpperCase()}`);
+                      toast.success("Đã sao chép nội dung chuyển khoản");
+                    }}
+                  >
+                    SG-{order.id.slice(-4).toUpperCase()}
+                  </button>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Số tiền</span>
+                  <span className="font-semibold">{formatVND(order.total)}</span>
+                </div>
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Sau khi chuyển khoản, đơn hàng sẽ được xác nhận trong vòng 15 phút
+                </p>
+              </div>
+              <div className="flex h-32 w-32 shrink-0 items-center justify-center self-center rounded-md border border-dashed border-amber-400 text-xs text-muted-foreground">
+                QR Code ngân hàng
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Order items */}
         <div className="rounded-lg border p-4">
           <h2 className="mb-3 font-medium">Sản phẩm</h2>

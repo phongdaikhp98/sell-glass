@@ -209,19 +209,6 @@ export default function CheckoutPage() {
             />
           </section>
 
-          {/* QR Payment */}
-          <section className="rounded-lg border p-4 text-center">
-            <h2 className="mb-3 font-medium">Thanh toán chuyển khoản</h2>
-            <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
-              [QR Placeholder]
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Quét QR để thanh toán
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Nội dung chuyển khoản: mã đơn hàng sẽ được cung cấp sau khi đặt hàng
-            </p>
-          </section>
         </div>
 
         {/* Right: order summary */}

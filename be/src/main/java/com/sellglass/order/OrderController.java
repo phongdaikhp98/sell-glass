@@ -5,6 +5,7 @@ import com.sellglass.common.response.PageResponse;
 import com.sellglass.order.dto.OrderRequest;
 import com.sellglass.order.dto.OrderResponse;
 import com.sellglass.order.dto.OrderStatusRequest;
+import com.sellglass.order.dto.PaymentStatusRequest;
 import com.sellglass.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -78,5 +79,13 @@ public class OrderController {
             @PathVariable UUID id,
             @Valid @RequestBody OrderStatusRequest request) {
         return ResponseEntity.ok(ApiResponse.success(orderService.updateStatus(id, request)));
+    }
+
+    @PatchMapping("/v1/admin/orders/{id}/payment-status")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'BRANCH_MANAGER', 'STAFF')")
+    public ResponseEntity<ApiResponse<OrderResponse>> updatePaymentStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody PaymentStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.updatePaymentStatus(id, request)));
     }
 }

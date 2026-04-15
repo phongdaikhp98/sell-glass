@@ -7,6 +7,7 @@ import {
   getAdminOrders,
   getAdminOrder,
   updateOrderStatus,
+  updatePaymentStatus,
   type OrderResponse,
 } from "@/lib/admin.api";
 import type { OrderStatus, PaymentStatus, PageResponse } from "@/types";
@@ -114,6 +115,11 @@ export default function AdminOrdersPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [updating, setUpdating] = useState(false);
 
+  // Confirm payment dialog
+  const [paymentOrder, setPaymentOrder] = useState<OrderResponse | null>(null);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     getAdminOrders(page, PAGE_SIZE)
@@ -164,6 +170,29 @@ export default function AdminOrdersPage() {
       toast.error("Cập nhật trạng thái thất bại");
     } finally {
       setUpdating(false);
+    }
+  }
+
+  async function handleConfirmPayment() {
+    if (!paymentOrder) return;
+    setConfirmingPayment(true);
+    try {
+      await updatePaymentStatus(paymentOrder.id, "PAID");
+      toast.success("Xác nhận thanh toán thành công");
+      setPaymentOpen(false);
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          content: prev.content.map((o) =>
+            o.id === paymentOrder.id ? { ...o, paymentStatus: "PAID" } : o
+          ),
+        };
+      });
+    } catch {
+      toast.error("Xác nhận thanh toán thất bại");
+    } finally {
+      setConfirmingPayment(false);
     }
   }
 
@@ -247,6 +276,16 @@ export default function AdminOrdersPage() {
                           <DropdownMenuItem onClick={() => openUpdateStatus(order)}>
                             Cập nhật trạng thái
                           </DropdownMenuItem>
+                          {order.paymentStatus !== "PAID" && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setPaymentOrder(order);
+                                setPaymentOpen(true);
+                              }}
+                            >
+                              Xác nhận thanh toán
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -371,6 +410,30 @@ export default function AdminOrdersPage() {
             </div>
           ) : null}
           <DialogFooter showCloseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm payment dialog */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Xác nhận thanh toán</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Xác nhận đã nhận thanh toán cho đơn{" "}
+            <span className="font-semibold text-foreground">
+              SG-{paymentOrder?.id.slice(-4).toUpperCase()}
+            </span>
+            ?
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)} disabled={confirmingPayment}>
+              Hủy
+            </Button>
+            <Button onClick={handleConfirmPayment} disabled={confirmingPayment}>
+              {confirmingPayment ? "Đang xác nhận..." : "Xác nhận"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
