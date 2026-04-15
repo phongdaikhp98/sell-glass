@@ -48,7 +48,11 @@ public class CustomerServiceImpl implements CustomerService {
     @Transactional
     public CustomerAddressResponse addAddress(UUID customerId, CustomerAddressRequest request) {
         if (request.isDefault()) {
-            // TODO: unset existing default address for this customer
+            customerAddressRepository.findByCustomerIdAndIsDefaultTrue(customerId)
+                    .ifPresent(existing -> {
+                        existing.setDefault(false);
+                        customerAddressRepository.save(existing);
+                    });
         }
         CustomerAddress address = new CustomerAddress();
         address.setCustomerId(customerId);
