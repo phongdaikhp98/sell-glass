@@ -1,5 +1,6 @@
 package com.sellglass.order;
 
+import com.sellglass.branch.Branch;
 import com.sellglass.branch.BranchRepository;
 import com.sellglass.catalog.product.Product;
 import com.sellglass.catalog.product.ProductRepository;
@@ -12,6 +13,7 @@ import com.sellglass.order.dto.OrderRequest;
 import com.sellglass.order.dto.OrderResponse;
 import com.sellglass.order.dto.OrderStatusRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,25 +38,32 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public PageResponse<OrderResponse> findByCustomer(UUID customerId, Pageable pageable) {
-        return PageResponse.of(orderRepository.findByCustomerId(customerId, pageable).map(OrderResponse::from));
+        Page<Order> orderPage = orderRepository.findByCustomerId(customerId, pageable);
+        return PageResponse.of(orderPage.map(o -> enrichOrder(o, buildItemsMap(orderPage), buildBranchNameMap(orderPage))));
     }
 
     @Override
     public PageResponse<OrderResponse> findAll(Pageable pageable) {
-        return PageResponse.of(orderRepository.findAll(pageable).map(OrderResponse::from));
+        Page<Order> orderPage = orderRepository.findAll(pageable);
+        return PageResponse.of(orderPage.map(o -> enrichOrder(o, buildItemsMap(orderPage), buildBranchNameMap(orderPage))));
     }
 
     @Override
     public OrderResponse findById(UUID id) {
-        return OrderResponse.from(orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Order not found")));
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Order not found"));
+        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        String branchName = branchRepository.findById(order.getBranchId())
+                .map(Branch::getName)
+                .orElse(null);
+        return OrderResponse.from(order, items, branchName);
     }
 
     @Override
     @Transactional
     public OrderResponse create(UUID customerId, OrderRequest request) {
-        branchRepository.findById(request.getBranchId())
-                .filter(com.sellglass.branch.Branch::isActive)
+        Branch branch = branchRepository.findById(request.getBranchId())
+                .filter(Branch::isActive)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Branch not found or inactive"));
 
         if (request.getOrderType() == OrderType.DELIVERY) {
@@ -124,7 +133,7 @@ public class OrderServiceImpl implements OrderService {
         items.forEach(item -> item.setOrderId(savedOrderId));
         orderItemRepository.saveAll(items);
 
-        return OrderResponse.from(order);
+        return OrderResponse.from(order, items, branch.getName());
     }
 
     @Override
@@ -136,6 +145,35 @@ public class OrderServiceImpl implements OrderService {
         if (request.getCancelledReason() != null) {
             order.setCancelledReason(request.getCancelledReason());
         }
-        return OrderResponse.from(orderRepository.save(order));
+        order = orderRepository.save(order);
+        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        String branchName = branchRepository.findById(order.getBranchId())
+                .map(Branch::getName)
+                .orElse(null);
+        return OrderResponse.from(order, items, branchName);
+    }
+
+    private Map<UUID, List<OrderItem>> buildItemsMap(Page<Order> orderPage) {
+        Set<UUID> orderIds = orderPage.getContent().stream()
+                .map(Order::getId)
+                .collect(Collectors.toSet());
+        return orderItemRepository.findByOrderIdIn(orderIds).stream()
+                .collect(Collectors.groupingBy(OrderItem::getOrderId));
+    }
+
+    private Map<UUID, String> buildBranchNameMap(Page<Order> orderPage) {
+        Set<UUID> branchIds = orderPage.getContent().stream()
+                .map(Order::getBranchId)
+                .collect(Collectors.toSet());
+        return branchRepository.findAllById(branchIds).stream()
+                .collect(Collectors.toMap(Branch::getId, Branch::getName));
+    }
+
+    private OrderResponse enrichOrder(Order order, Map<UUID, List<OrderItem>> itemsMap, Map<UUID, String> branchNameMap) {
+        return OrderResponse.from(
+                order,
+                itemsMap.getOrDefault(order.getId(), List.of()),
+                branchNameMap.get(order.getBranchId())
+        );
     }
 }

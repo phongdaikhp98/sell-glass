@@ -2,14 +2,23 @@ package com.sellglass.cart;
 
 import com.sellglass.cart.dto.CartItemRequest;
 import com.sellglass.cart.dto.CartResponse;
+import com.sellglass.catalog.product.ProductImage;
+import com.sellglass.catalog.product.ProductImageRepository;
+import com.sellglass.catalog.product.ProductRepository;
+import com.sellglass.catalog.variant.ProductVariant;
+import com.sellglass.catalog.variant.ProductVariantRepository;
 import com.sellglass.common.exception.AppException;
 import com.sellglass.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +26,9 @@ public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final ProductVariantRepository productVariantRepository;
+    private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
 
     @Override
     public CartResponse getCart(UUID customerId) {
@@ -41,7 +53,7 @@ public class CartServiceImpl implements CartService {
                         }
                 );
 
-        // TODO: Flush context to reflect updated item in response
+        cartItemRepository.flush();
         return buildCartResponse(cart);
     }
 
@@ -87,10 +99,70 @@ public class CartServiceImpl implements CartService {
     }
 
     private CartResponse buildCartResponse(Cart cart) {
-        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
-        List<CartResponse.CartItemDetail> details = items.stream()
-                .map(i -> new CartResponse.CartItemDetail(i.getId(), i.getProductVariantId(), i.getQuantity()))
-                .toList();
-        return new CartResponse(cart.getId(), details);
+        List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+
+        Set<UUID> variantIds = cartItems.stream()
+                .map(CartItem::getProductVariantId)
+                .collect(Collectors.toSet());
+
+        Map<UUID, ProductVariant> variantMap = productVariantRepository.findAllById(variantIds).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, v -> v));
+
+        Set<UUID> productIds = variantMap.values().stream()
+                .map(ProductVariant::getProductId)
+                .collect(Collectors.toSet());
+
+        Map<UUID, String> productNameMap = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(
+                        com.sellglass.catalog.product.Product::getId,
+                        com.sellglass.catalog.product.Product::getName
+                ));
+
+        Map<UUID, String> primaryImageMap = productImageRepository.findByProductIdIn(productIds).stream()
+                .filter(ProductImage::isPrimary)
+                .collect(Collectors.toMap(
+                        ProductImage::getProductId,
+                        ProductImage::getUrl,
+                        (existing, replacement) -> existing
+                ));
+
+        List<CartResponse.CartItemDetail> details = cartItems.stream().map(cartItem -> {
+            ProductVariant variant = variantMap.get(cartItem.getProductVariantId());
+            String productName = null;
+            String primaryImageUrl = null;
+            String sku = null;
+            String color = null;
+            String size = null;
+            BigDecimal price = BigDecimal.ZERO;
+
+            if (variant != null) {
+                sku = variant.getSku();
+                color = variant.getColor();
+                size = variant.getSize();
+                price = variant.getPrice();
+                productName = productNameMap.get(variant.getProductId());
+                primaryImageUrl = primaryImageMap.get(variant.getProductId());
+            }
+
+            BigDecimal subtotal = price.multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+            return new CartResponse.CartItemDetail(
+                    cartItem.getId(),
+                    cartItem.getProductVariantId(),
+                    productName,
+                    primaryImageUrl,
+                    sku,
+                    color,
+                    size,
+                    price,
+                    cartItem.getQuantity(),
+                    subtotal
+            );
+        }).toList();
+
+        BigDecimal total = details.stream()
+                .map(CartResponse.CartItemDetail::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new CartResponse(cart.getId(), details, total);
     }
 }
