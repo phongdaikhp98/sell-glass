@@ -17,6 +17,7 @@ public class AppointmentResponse {
     private UUID id;
     private UUID customerId;
     private UUID branchId;
+    private String branchName;
     private UUID staffId;
     private LocalDateTime scheduledAt;
     private AppointmentStatus status;
@@ -24,11 +25,12 @@ public class AppointmentResponse {
     private String resultNote;
     private LocalDateTime createdAt;
 
-    public static AppointmentResponse from(Appointment appointment) {
+    public static AppointmentResponse from(Appointment appointment, String branchName) {
         AppointmentResponse response = new AppointmentResponse();
         response.id = appointment.getId();
         response.customerId = appointment.getCustomerId();
         response.branchId = appointment.getBranchId();
+        response.branchName = branchName;
         response.staffId = appointment.getStaffId();
         response.scheduledAt = appointment.getScheduledAt();
         response.status = appointment.getStatus();

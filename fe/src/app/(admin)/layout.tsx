@@ -9,6 +9,7 @@ import {
   Package,
   Users,
   UserCog,
+  CalendarClock,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import {
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart },
+  { href: "/admin/appointments", label: "Lịch hẹn", icon: CalendarClock },
   { href: "/admin/products", label: "Sản phẩm", icon: Package },
   { href: "/admin/customers", label: "Khách hàng", icon: Users },
   { href: "/admin/staff", label: "Nhân viên", icon: UserCog },

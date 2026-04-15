@@ -8,11 +8,15 @@ import com.sellglass.common.exception.AppException;
 import com.sellglass.common.exception.ErrorCode;
 import com.sellglass.common.response.PageResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,19 +27,26 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public PageResponse<AppointmentResponse> findByCustomer(UUID customerId, Pageable pageable) {
-        return PageResponse.of(appointmentRepository.findByCustomerId(customerId, pageable)
-                .map(AppointmentResponse::from));
+        Page<Appointment> page = appointmentRepository.findByCustomerId(customerId, pageable);
+        Map<UUID, String> branchNameMap = buildBranchNameMap(page);
+        return PageResponse.of(page.map(a -> AppointmentResponse.from(a, branchNameMap.get(a.getBranchId()))));
     }
 
     @Override
     public PageResponse<AppointmentResponse> findAll(Pageable pageable) {
-        return PageResponse.of(appointmentRepository.findAll(pageable).map(AppointmentResponse::from));
+        Page<Appointment> page = appointmentRepository.findAll(pageable);
+        Map<UUID, String> branchNameMap = buildBranchNameMap(page);
+        return PageResponse.of(page.map(a -> AppointmentResponse.from(a, branchNameMap.get(a.getBranchId()))));
     }
 
     @Override
     public AppointmentResponse findById(UUID id) {
-        return AppointmentResponse.from(appointmentRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Appointment not found")));
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Appointment not found"));
+        String branchName = branchRepository.findById(appointment.getBranchId())
+                .map(Branch::getName)
+                .orElse(null);
+        return AppointmentResponse.from(appointment, branchName);
     }
 
     @Override
@@ -58,7 +69,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setBranchId(request.getBranchId());
         appointment.setScheduledAt(request.getScheduledAt());
         appointment.setNote(request.getNote());
-        return AppointmentResponse.from(appointmentRepository.save(appointment));
+        return AppointmentResponse.from(appointmentRepository.save(appointment), branch.getName());
     }
 
     @Override
@@ -70,7 +81,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (resultNote != null) {
             appointment.setResultNote(resultNote);
         }
-        return AppointmentResponse.from(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+        String branchName = branchRepository.findById(saved.getBranchId())
+                .map(Branch::getName)
+                .orElse(null);
+        return AppointmentResponse.from(saved, branchName);
     }
 
     @Override
@@ -86,5 +101,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
         appointment.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepository.save(appointment);
+    }
+
+    private Map<UUID, String> buildBranchNameMap(Page<Appointment> page) {
+        Set<UUID> branchIds = page.getContent().stream()
+                .map(Appointment::getBranchId)
+                .collect(Collectors.toSet());
+        return branchRepository.findAllById(branchIds).stream()
+                .collect(Collectors.toMap(Branch::getId, Branch::getName));
     }
 }

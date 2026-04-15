@@ -17,6 +17,7 @@ import { useAuthStore } from "@/store/auth.store";
 const navLinks = [
   { href: "/products", label: "Sản phẩm" },
   { href: "/branches", label: "Chi nhánh" },
+  { href: "/appointments", label: "Đặt lịch hẹn" },
 ];
 
 export default function Header() {
