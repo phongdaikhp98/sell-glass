@@ -21,7 +21,7 @@ import {
 
 const schema = z
   .object({
-    newPassword: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
+    newPassword: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
     confirm: z.string(),
   })
   .refine((d) => d.newPassword === d.confirm, {

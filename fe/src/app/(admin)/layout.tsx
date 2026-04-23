@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingCart,
   Package,
+  Tag,
+  Bookmark,
+  MapPin,
   Users,
   UserCog,
   CalendarClock,
+  Ticket,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -25,19 +29,33 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const NAV_ITEMS = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart },
-  { href: "/admin/appointments", label: "Lịch hẹn", icon: CalendarClock },
-  { href: "/admin/products", label: "Sản phẩm", icon: Package },
-  { href: "/admin/customers", label: "Khách hàng", icon: Users },
-  { href: "/admin/staff", label: "Nhân viên", icon: UserCog },
+type AdminRole = "STAFF" | "BRANCH_MANAGER" | "SUPER_ADMIN";
+
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: AdminRole[];
+}[] = [
+  { href: "/admin/dashboard", label: "Dashboard",    icon: LayoutDashboard, roles: ["STAFF", "BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/orders",    label: "Đơn hàng",     icon: ShoppingCart,    roles: ["STAFF", "BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/appointments", label: "Lịch hẹn", icon: CalendarClock,   roles: ["STAFF", "BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/products",  label: "Sản phẩm",     icon: Package,         roles: ["BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/categories", label: "Danh mục",   icon: Tag,             roles: ["BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/brands",    label: "Thương hiệu",  icon: Bookmark,        roles: ["BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/branches",  label: "Chi nhánh",    icon: MapPin,          roles: ["SUPER_ADMIN"] },
+  { href: "/admin/vouchers",  label: "Voucher",      icon: Ticket,          roles: ["BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/customers", label: "Khách hàng",   icon: Users,           roles: ["STAFF", "BRANCH_MANAGER", "SUPER_ADMIN"] },
+  { href: "/admin/staff",     label: "Nhân viên",    icon: UserCog,         roles: ["SUPER_ADMIN"] },
 ];
 
-function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavLinks({ pathname, role, onNavigate }: { pathname: string; role: string | null; onNavigate?: () => void }) {
+  const visibleItems = NAV_ITEMS.filter((item) =>
+    role ? item.roles.includes(role as AdminRole) : false
+  );
   return (
     <nav className="flex flex-col gap-1">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {visibleItems.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
@@ -105,7 +123,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
       <Separator />
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        <NavLinks pathname={pathname} onNavigate={() => setSheetOpen(false)} />
+        <NavLinks pathname={pathname} role={role} onNavigate={() => setSheetOpen(false)} />
       </div>
       <Separator />
       <div className="px-3 py-4">

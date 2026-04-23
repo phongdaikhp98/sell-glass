@@ -24,7 +24,7 @@ const schema = z
     fullName: z.string().min(1, "Vui lòng nhập họ tên"),
     email: z.string().email("Email không hợp lệ"),
     phone: z.string().optional(),
-    password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
+    password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
     confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
   })
   .refine((data) => data.password === data.confirmPassword, {

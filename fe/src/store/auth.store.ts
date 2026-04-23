@@ -13,6 +13,18 @@ interface AuthState {
   isAuthenticated: () => boolean;
 }
 
+function setSessionCookie() {
+  if (typeof document !== "undefined") {
+    document.cookie = "sg_session=1; path=/; max-age=604800; SameSite=Lax";
+  }
+}
+
+function clearSessionCookie() {
+  if (typeof document !== "undefined") {
+    document.cookie = "sg_session=; path=/; max-age=0; SameSite=Lax";
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -20,13 +32,25 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       user: null,
       role: null,
-      setTokens: (access, refresh) =>
-        set({ accessToken: access, refreshToken: refresh }),
+      setTokens: (access, refresh) => {
+        set({ accessToken: access, refreshToken: refresh });
+        setSessionCookie();
+      },
       setUser: (user, role) => set({ user, role }),
-      logout: () =>
-        set({ accessToken: null, refreshToken: null, user: null, role: null }),
+      logout: () => {
+        set({ accessToken: null, refreshToken: null, user: null, role: null });
+        clearSessionCookie();
+      },
       isAuthenticated: () => !!get().accessToken,
     }),
-    { name: "auth" }
+    {
+      name: "auth",
+      // Không persist accessToken — lấy lại bằng refreshToken khi reload
+      partialize: (state) => ({
+        refreshToken: state.refreshToken,
+        user: state.user,
+        role: state.role,
+      }),
+    }
   )
 );

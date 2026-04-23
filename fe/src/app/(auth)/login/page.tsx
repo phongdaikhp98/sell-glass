@@ -23,7 +23,7 @@ import {
 
 const schema = z.object({
   email: z.string().email("Email không hợp lệ"),
-  password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
+  password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
 });
 
 type FormValues = z.infer<typeof schema>;
