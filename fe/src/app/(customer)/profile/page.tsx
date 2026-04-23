@@ -26,6 +26,8 @@ import {
   addAddress,
   updateAddress,
   deleteAddress,
+  updateProfile,
+  changePassword,
 } from "@/lib/profile.api";
 import type { Customer } from "@/types";
 
@@ -61,6 +63,13 @@ export default function ProfilePage() {
   const [profileFullName, setProfileFullName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+
+  // Change password dialog
+  const [changePwOpen, setChangePwOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changePwSaving, setChangePwSaving] = useState(false);
 
   // Address dialog
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
@@ -106,13 +115,53 @@ export default function ProfilePage() {
   }
 
   async function handleSaveProfile() {
-    // PUT /v1/me not yet implemented — disable for now
+    if (!profileFullName.trim()) {
+      toast.error("Họ tên không được để trống");
+      return;
+    }
     setProfileSaving(true);
     try {
-      toast.info("Tính năng cập nhật hồ sơ chưa được hỗ trợ.");
+      const updated = await updateProfile({
+        fullName: profileFullName.trim(),
+        phone: profilePhone.trim() || undefined,
+      });
+      setProfile(updated);
+      toast.success("Đã cập nhật thông tin");
+      setEditProfileOpen(false);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Không thể cập nhật thông tin");
     } finally {
       setProfileSaving(false);
-      setEditProfileOpen(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Vui lòng điền đầy đủ thông tin");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    setChangePwSaving(true);
+    try {
+      await changePassword({ currentPassword, newPassword });
+      toast.success("Đã đổi mật khẩu thành công");
+      setChangePwOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Không thể đổi mật khẩu");
+    } finally {
+      setChangePwSaving(false);
     }
   }
 
@@ -276,6 +325,24 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {/* Bảo mật */}
+      <div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
+        <h2 className="font-semibold text-base">Bảo mật</h2>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Mật khẩu</p>
+            <p className="text-sm text-muted-foreground">Thay đổi mật khẩu đăng nhập</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => {
+            setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+            setChangePwOpen(true);
+          }}>
+            Đổi mật khẩu
+          </Button>
+        </div>
+      </div>
+
       {/* Lịch sử đơn hàng */}
       <div className="rounded-xl border bg-card p-6">
         <Link
@@ -397,6 +464,56 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog đổi mật khẩu */}
+      <Dialog open={changePwOpen} onOpenChange={setChangePwOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Đổi mật khẩu</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="current-pw">Mật khẩu hiện tại</Label>
+              <Input
+                id="current-pw"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="new-pw">Mật khẩu mới</Label>
+              <Input
+                id="new-pw"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="confirm-pw">Xác nhận mật khẩu mới</Label>
+              <Input
+                id="confirm-pw"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setChangePwOpen(false)}
+                disabled={changePwSaving}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleChangePassword} disabled={changePwSaving}>
+                {changePwSaving ? "Đang lưu..." : "Đổi mật khẩu"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

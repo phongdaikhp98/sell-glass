@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
+
+export const metadata: Metadata = {
+  openGraph: {
+    images: [{ url: "/og-default.jpg", width: 1200, height: 630, alt: "Sell Glass" }],
+  },
+};
 
 export default function PublicLayout({
   children,

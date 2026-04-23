@@ -53,6 +53,7 @@ export default function OrderDetailPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -64,6 +65,23 @@ export default function OrderDetailPage() {
       .catch(() => toast.error("Không thể tải thông tin đơn hàng"))
       .finally(() => setLoading(false));
   }, [isAuthenticated, params.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleCheckPayment() {
+    setChecking(true);
+    try {
+      const updated = await getMyOrder(params.id);
+      setOrder(updated);
+      if (updated.paymentStatus === "PAID") {
+        toast.success("Thanh toán đã được xác nhận!");
+      } else {
+        toast.info("Chưa ghi nhận thanh toán. Vui lòng thử lại sau ít phút.");
+      }
+    } catch {
+      toast.error("Không thể kiểm tra trạng thái thanh toán");
+    } finally {
+      setChecking(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -104,7 +122,7 @@ export default function OrderDetailPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">
-            Đơn hàng #{order.id.slice(-4).toUpperCase()}
+            Đơn hàng SG-{order.id.slice(0, 8).toUpperCase()}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Đặt ngày {new Date(order.createdAt).toLocaleDateString("vi-VN", {
@@ -185,11 +203,11 @@ export default function OrderDetailPage() {
                   <button
                     className="font-bold tracking-wide text-amber-900 hover:underline"
                     onClick={() => {
-                      navigator.clipboard.writeText(`SG-${order.id.slice(-4).toUpperCase()}`);
+                      navigator.clipboard.writeText(`SG-${order.id.slice(0, 8).toUpperCase()}`);
                       toast.success("Đã sao chép nội dung chuyển khoản");
                     }}
                   >
-                    SG-{order.id.slice(-4).toUpperCase()}
+                    SG-{order.id.slice(0, 8).toUpperCase()}
                   </button>
                 </div>
                 <div className="flex justify-between">
@@ -197,13 +215,67 @@ export default function OrderDetailPage() {
                   <span className="font-semibold">{formatVND(order.total)}</span>
                 </div>
                 <p className="pt-1 text-xs text-muted-foreground">
-                  Sau khi chuyển khoản, đơn hàng sẽ được xác nhận trong vòng 15 phút
+                  Sau khi chuyển khoản, hệ thống tự động xác nhận. Nhấn nút bên dưới để kiểm tra.
                 </p>
               </div>
               <div className="flex h-32 w-32 shrink-0 items-center justify-center self-center rounded-md border border-dashed border-amber-400 text-xs text-muted-foreground">
                 QR Code ngân hàng
               </div>
             </div>
+            <div className="mt-3 flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-900 hover:bg-amber-100"
+                disabled={checking}
+                onClick={handleCheckPayment}
+              >
+                {checking ? "Đang kiểm tra..." : "Kiểm tra thanh toán"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Prescription */}
+        {order.prescription && (
+          <div className="rounded-lg border p-4">
+            <h2 className="mb-3 font-medium">Toa thuốc / Độ kính</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-muted-foreground">
+                    <th className="pb-2 pr-4 text-left font-medium"></th>
+                    <th className="pb-2 pr-4 text-center font-medium">SPH (Cầu)</th>
+                    <th className="pb-2 pr-4 text-center font-medium">CYL (Loạn)</th>
+                    <th className="pb-2 text-center font-medium">AXIS (Trục)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  <tr>
+                    <td className="py-2 pr-4 font-medium">OD (Mắt phải)</td>
+                    <td className="py-2 pr-4 text-center">{order.prescription.odSph ?? "—"}</td>
+                    <td className="py-2 pr-4 text-center">{order.prescription.odCyl ?? "—"}</td>
+                    <td className="py-2 text-center">{order.prescription.odAxis ?? "—"}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium">OS (Mắt trái)</td>
+                    <td className="py-2 pr-4 text-center">{order.prescription.osSph ?? "—"}</td>
+                    <td className="py-2 pr-4 text-center">{order.prescription.osCyl ?? "—"}</td>
+                    <td className="py-2 text-center">{order.prescription.osAxis ?? "—"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {order.prescription.pd && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                PD (Khoảng cách đồng tử): <span className="font-medium text-foreground">{order.prescription.pd} mm</span>
+              </p>
+            )}
+            {order.prescription.note && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ghi chú: <span className="text-foreground">{order.prescription.note}</span>
+              </p>
+            )}
           </div>
         )}
 
@@ -240,6 +312,12 @@ export default function OrderDetailPage() {
                 {order.shippingFee === 0 ? "Miễn phí" : formatVND(order.shippingFee)}
               </span>
             </div>
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between text-green-700">
+                <span>Giảm giá{order.voucherCode ? ` (${order.voucherCode})` : ""}</span>
+                <span>-{formatVND(order.discountAmount)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-semibold">
               <span>Tổng cộng</span>

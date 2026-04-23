@@ -1,6 +1,17 @@
 import api from "./api";
 import type { ApiResponse, Order, PageResponse } from "@/types";
 
+export interface PrescriptionData {
+  odSph?: number | null;
+  odCyl?: number | null;
+  odAxis?: number | null;
+  osSph?: number | null;
+  osCyl?: number | null;
+  osAxis?: number | null;
+  pd?: number | null;
+  note?: string | null;
+}
+
 export interface CreateOrderData {
   branchId: string;
   orderType: "PICKUP" | "DELIVERY";
@@ -9,6 +20,8 @@ export interface CreateOrderData {
   deliveryAddress?: string;
   items: { productVariantId: string; quantity: number }[];
   note?: string;
+  voucherCode?: string;
+  prescription?: PrescriptionData | null;
 }
 
 export async function createOrder(data: CreateOrderData): Promise<Order> {

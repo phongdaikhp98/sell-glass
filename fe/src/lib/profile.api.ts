@@ -36,3 +36,12 @@ export async function updateAddress(
 export async function deleteAddress(id: string) {
   await api.delete(`/v1/me/addresses/${id}`)
 }
+
+export async function updateProfile(data: { fullName: string; phone?: string }) {
+  const res = await api.patch('/v1/me', data)
+  return res.data.data
+}
+
+export async function changePassword(data: { currentPassword: string; newPassword: string }) {
+  await api.post('/v1/me/change-password', data)
+}

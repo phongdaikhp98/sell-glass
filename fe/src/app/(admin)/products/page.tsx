@@ -44,6 +44,7 @@ import {
 } from "@/lib/admin-product.api";
 import { getCategories, getBrands } from "@/lib/product.api";
 import ProductImageManager from "@/components/products/ProductImageManager";
+import ProductVariantManager from "@/components/products/ProductVariantManager";
 import type { Category, Brand } from "@/types";
 
 const formatVND = (price: number) =>
@@ -112,6 +113,9 @@ export default function AdminProductsPage() {
 
   const [imageProduct, setImageProduct] = useState<AdminProductListItem | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+
+  const [variantProduct, setVariantProduct] = useState<AdminProductListItem | null>(null);
+  const [variantDialogOpen, setVariantDialogOpen] = useState(false);
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -345,6 +349,16 @@ export default function AdminProductsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
+                            setVariantProduct(product);
+                            setVariantDialogOpen(true);
+                          }}
+                        >
+                          Biến thể
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
                             setImageProduct(product);
                             setImageDialogOpen(true);
                           }}
@@ -540,6 +554,21 @@ export default function AdminProductsPage() {
                 : "Thêm sản phẩm"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Variant Management Dialog */}
+      <Dialog open={variantDialogOpen} onOpenChange={setVariantDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Quản lý biến thể</DialogTitle>
+          </DialogHeader>
+          {variantProduct && (
+            <ProductVariantManager
+              productId={variantProduct.id}
+              productName={variantProduct.name}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

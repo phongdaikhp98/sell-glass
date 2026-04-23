@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { getCart } from "@/lib/cart.api";
 import { createOrder } from "@/lib/order.api";
+import { applyVoucher } from "@/lib/voucher.api";
 import { getBranches } from "@/lib/branch.api";
 import type { Branch, Cart } from "@/types";
 
@@ -41,6 +42,22 @@ export default function CheckoutPage() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Voucher state
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discountAmount: number; description: string } | null>(null);
+  const [applyingVoucher, setApplyingVoucher] = useState(false);
+
+  // Prescription state
+  const [hasPrescription, setHasPrescription] = useState(false);
+  const [odSph, setOdSph] = useState("");
+  const [odCyl, setOdCyl] = useState("");
+  const [odAxis, setOdAxis] = useState("");
+  const [osSph, setOsSph] = useState("");
+  const [osCyl, setOsCyl] = useState("");
+  const [osAxis, setOsAxis] = useState("");
+  const [pd, setPd] = useState("");
+  const [prescriptionNote, setPrescriptionNote] = useState("");
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace("/login");
@@ -63,7 +80,24 @@ export default function CheckoutPage() {
   const items = localCart?.items ?? [];
   const subtotal = localCart?.total ?? 0;
   const shippingFee = orderType === "DELIVERY" ? SHIPPING_FEE : 0;
-  const total = subtotal + shippingFee;
+  const discountAmount = appliedVoucher?.discountAmount ?? 0;
+  const total = Math.max(0, subtotal + shippingFee - discountAmount);
+
+  async function handleApplyVoucher() {
+    if (!voucherInput.trim()) return;
+    setApplyingVoucher(true);
+    try {
+      const result = await applyVoucher(voucherInput.trim().toUpperCase(), subtotal + shippingFee);
+      setAppliedVoucher({ code: voucherInput.trim().toUpperCase(), ...result });
+      toast.success(result.description);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Mã giảm giá không hợp lệ");
+      setAppliedVoucher(null);
+    } finally {
+      setApplyingVoucher(false);
+    }
+  }
 
   async function handleSubmit() {
     if (!branchId) {
@@ -91,6 +125,17 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     try {
+      const prescription = hasPrescription ? {
+        odSph: odSph ? parseFloat(odSph) : null,
+        odCyl: odCyl ? parseFloat(odCyl) : null,
+        odAxis: odAxis ? parseInt(odAxis) : null,
+        osSph: osSph ? parseFloat(osSph) : null,
+        osCyl: osCyl ? parseFloat(osCyl) : null,
+        osAxis: osAxis ? parseInt(osAxis) : null,
+        pd: pd ? parseFloat(pd) : null,
+        note: prescriptionNote.trim() || null,
+      } : null;
+
       const order = await createOrder({
         branchId,
         orderType,
@@ -102,6 +147,8 @@ export default function CheckoutPage() {
           quantity: i.quantity,
         })),
         note: note.trim() || undefined,
+        voucherCode: appliedVoucher?.code,
+        prescription,
       });
       clearCart();
       toast.success("Đặt hàng thành công!");
@@ -197,9 +244,100 @@ export default function CheckoutPage() {
             </section>
           )}
 
+          {/* Prescription */}
+          <section>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 accent-primary"
+                checked={hasPrescription}
+                onChange={(e) => setHasPrescription(e.target.checked)}
+              />
+              <span className="font-medium">Nhập toa thuốc / độ kính</span>
+            </label>
+
+            {hasPrescription && (
+              <div className="mt-3 rounded-lg border p-4 space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  OD = Mắt phải · OS = Mắt trái · SPH = Cầu · CYL = Loạn · AXIS = Trục
+                </p>
+                <div className="grid grid-cols-4 gap-2 text-sm">
+                  <div />
+                  <div className="text-center font-medium text-muted-foreground">SPH</div>
+                  <div className="text-center font-medium text-muted-foreground">CYL</div>
+                  <div className="text-center font-medium text-muted-foreground">AXIS</div>
+
+                  <div className="flex items-center font-medium">OD (Phải)</div>
+                  <Input placeholder="e.g. -1.50" value={odSph} onChange={(e) => setOdSph(e.target.value)} className="text-sm" />
+                  <Input placeholder="e.g. -0.75" value={odCyl} onChange={(e) => setOdCyl(e.target.value)} className="text-sm" />
+                  <Input placeholder="e.g. 180" value={odAxis} onChange={(e) => setOdAxis(e.target.value)} className="text-sm" />
+
+                  <div className="flex items-center font-medium">OS (Trái)</div>
+                  <Input placeholder="e.g. -1.25" value={osSph} onChange={(e) => setOsSph(e.target.value)} className="text-sm" />
+                  <Input placeholder="e.g. -0.50" value={osCyl} onChange={(e) => setOsCyl(e.target.value)} className="text-sm" />
+                  <Input placeholder="e.g. 175" value={osAxis} onChange={(e) => setOsAxis(e.target.value)} className="text-sm" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Label className="shrink-0 text-sm">PD (mm)</Label>
+                  <Input placeholder="e.g. 63.0" value={pd} onChange={(e) => setPd(e.target.value)} className="max-w-32 text-sm" />
+                </div>
+
+                <div>
+                  <Label className="mb-1 block text-sm">Ghi chú toa (tùy chọn)</Label>
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    rows={2}
+                    placeholder="Thêm lưu ý cho nhân viên..."
+                    value={prescriptionNote}
+                    onChange={(e) => setPrescriptionNote(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Voucher */}
+          <section>
+            <Label className="mb-2 block">Mã giảm giá</Label>
+            {appliedVoucher ? (
+              <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                <div>
+                  <span className="font-mono font-semibold text-green-800">{appliedVoucher.code}</span>
+                  <span className="ml-2 text-sm text-green-700">— {appliedVoucher.description}</span>
+                </div>
+                <button
+                  type="button"
+                  className="text-sm text-green-700 underline hover:text-green-900"
+                  onClick={() => { setAppliedVoucher(null); setVoucherInput(""); }}
+                >
+                  Xóa
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nhập mã giảm giá"
+                  value={voucherInput}
+                  onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleApplyVoucher(); } }}
+                  className="font-mono uppercase"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleApplyVoucher}
+                  disabled={applyingVoucher || !voucherInput.trim()}
+                >
+                  {applyingVoucher ? "Đang áp dụng..." : "Áp dụng"}
+                </Button>
+              </div>
+            )}
+          </section>
+
           {/* Note */}
           <section>
-            <Label className="mb-2 block">Ghi chú (tùy chọn)</Label>
+            <Label className="mb-2 block">Ghi chú đơn hàng (tùy chọn)</Label>
             <textarea
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               rows={3}
@@ -253,6 +391,12 @@ export default function CheckoutPage() {
                 <span>Phí vận chuyển</span>
                 <span>{shippingFee === 0 ? "Miễn phí" : formatVND(shippingFee)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>Giảm giá</span>
+                  <span>-{formatVND(discountAmount)}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Tổng cộng</span>

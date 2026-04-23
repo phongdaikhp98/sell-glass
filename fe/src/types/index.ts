@@ -37,6 +37,7 @@ export interface ProductVariant {
   size: string;
   price: number;
   isActive: boolean;
+  stock: number;
 }
 
 export interface ProductListItem {
@@ -84,6 +85,17 @@ export type OrderStatus =
 
 export type PaymentStatus = "UNPAID" | "PENDING_VERIFY" | "PAID";
 
+export interface Prescription {
+  odSph: number | null;
+  odCyl: number | null;
+  odAxis: number | null;
+  osSph: number | null;
+  osCyl: number | null;
+  osAxis: number | null;
+  pd: number | null;
+  note: string | null;
+}
+
 export interface Order {
   id: string;
   orderType: "PICKUP" | "DELIVERY";
@@ -91,7 +103,9 @@ export interface Order {
   paymentStatus: PaymentStatus;
   subtotal: number;
   shippingFee: number;
+  discountAmount: number;
   total: number;
+  voucherCode?: string | null;
   branch: Pick<Branch, "id" | "name" | "address">;
   items: {
     id: string;
@@ -101,6 +115,31 @@ export interface Order {
     quantity: number;
     subtotal: number;
   }[];
+  prescription?: Prescription | null;
+  createdAt: string;
+}
+
+export interface Voucher {
+  id: string;
+  code: string;
+  type: "PERCENTAGE" | "FIXED_AMOUNT";
+  value: number;
+  maxDiscountAmount?: number | null;
+  minOrderAmount: number;
+  usageLimit?: number | null;
+  timesUsed: number;
+  expiresAt?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+// Review
+export interface Review {
+  id: string;
+  customerId: string;
+  customerName: string;
+  rating: number;
+  comment?: string | null;
   createdAt: string;
 }
 
