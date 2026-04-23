@@ -5,9 +5,11 @@ import com.sellglass.report.dto.OrderStatusCountResponse;
 import com.sellglass.report.dto.RevenueResponse;
 import com.sellglass.report.dto.SummaryResponse;
 import com.sellglass.report.dto.TopProductResponse;
+import jakarta.validation.constraints.Max;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v1/admin/reports")
 @RequiredArgsConstructor
+@Validated
 @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'BRANCH_MANAGER')")
 public class ReportController {
 
@@ -38,7 +41,7 @@ public class ReportController {
 
     @GetMapping("/top-products")
     public ResponseEntity<ApiResponse<List<TopProductResponse>>> getTopProducts(
-            @RequestParam(defaultValue = "10") int limit) {
+            @Max(value = 100, message = "Limit cannot exceed 100") @RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(ApiResponse.success(reportService.getTopProducts(limit)));
     }
 

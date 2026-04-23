@@ -14,12 +14,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/products")
 @RequiredArgsConstructor
 public class ProductController {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "name");
 
     private final ProductService productService;
 
@@ -35,7 +38,8 @@ public class ProductController {
         String[] sortParts = sort.split(",");
         Sort.Direction direction = sortParts.length > 1 && "asc".equalsIgnoreCase(sortParts[1])
                 ? Sort.Direction.ASC : Sort.Direction.DESC;
-        PageRequest pageable = PageRequest.of(page - 1, size, Sort.by(direction, sortParts[0]));
+        String sortField = ALLOWED_SORT_FIELDS.contains(sortParts[0]) ? sortParts[0] : "createdAt";
+        PageRequest pageable = PageRequest.of(page - 1, size, Sort.by(direction, sortField));
         return ResponseEntity.ok(ApiResponse.success(
                 productService.findAll(search, categoryId, brandId, gender, pageable)));
     }

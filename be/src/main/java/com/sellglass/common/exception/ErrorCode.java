@@ -11,6 +11,7 @@ public enum ErrorCode {
     FORBIDDEN("FORBIDDEN", "Access denied", HttpStatus.FORBIDDEN),
     BAD_REQUEST("BAD_REQUEST", "Invalid request", HttpStatus.BAD_REQUEST),
     CONFLICT("CONFLICT", "Resource already exists", HttpStatus.CONFLICT),
+    TOO_MANY_REQUESTS("TOO_MANY_REQUESTS", "Too many requests", HttpStatus.TOO_MANY_REQUESTS),
     INTERNAL_ERROR("INTERNAL_ERROR", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;

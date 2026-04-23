@@ -39,6 +39,7 @@ public class JwtTokenProvider {
                 .claim("userId", userId.toString())
                 .claim("email", email)
                 .claim("role", role)
+                .claim("type", "access")
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey)

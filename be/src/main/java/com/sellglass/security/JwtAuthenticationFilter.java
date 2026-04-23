@@ -36,6 +36,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             try {
                 Claims claims = jwtTokenProvider.parseToken(token);
+                if (!"access".equals(claims.get("type", String.class))) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 String subject = claims.getSubject();
 
                 if (subject != null && SecurityContextHolder.getContext().getAuthentication() == null) {

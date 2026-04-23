@@ -1,5 +1,7 @@
 package com.sellglass.order;
 
+import com.sellglass.common.exception.AppException;
+import com.sellglass.common.exception.ErrorCode;
 import com.sellglass.common.response.ApiResponse;
 import com.sellglass.common.response.PageResponse;
 import com.sellglass.order.dto.OrderRequest;
@@ -43,7 +45,7 @@ public class OrderController {
             @PathVariable UUID id) {
         OrderResponse order = orderService.findById(id);
         if (!order.getCustomerId().equals(userDetails.getUserId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new AppException(ErrorCode.FORBIDDEN, "Order does not belong to this customer");
         }
         return ResponseEntity.ok(ApiResponse.success(order));
     }

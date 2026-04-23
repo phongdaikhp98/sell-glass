@@ -159,7 +159,7 @@ public class ProductImageController {
         return image;
     }
 
-    private void validateFile(MultipartFile file) {
+    private void validateFile(MultipartFile file) throws java.io.IOException {
         if (file.isEmpty()) {
             throw new AppException(ErrorCode.BAD_REQUEST, "File is empty");
         }
@@ -169,5 +169,27 @@ public class ProductImageController {
         if (!ALLOWED_TYPES.contains(file.getContentType())) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Only JPEG, PNG and WebP images are allowed");
         }
+        // Verify magic bytes — Content-Type header is client-controlled and cannot be trusted alone
+        byte[] header = file.getBytes();
+        if (!isJpeg(header) && !isPng(header) && !isWebp(header)) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "File content does not match an allowed image format");
+        }
+    }
+
+    private static boolean isJpeg(byte[] b) {
+        return b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF;
+    }
+
+    private static boolean isPng(byte[] b) {
+        return b.length >= 4
+                && (b[0] & 0xFF) == 0x89 && (b[1] & 0xFF) == 0x50
+                && (b[2] & 0xFF) == 0x4E && (b[3] & 0xFF) == 0x47;
+    }
+
+    private static boolean isWebp(byte[] b) {
+        // RIFF????WEBP
+        return b.length >= 12
+                && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F'
+                && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P';
     }
 }

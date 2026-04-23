@@ -29,6 +29,11 @@ import java.util.concurrent.TimeUnit;
 public class AuthServiceImpl implements AuthService {
 
     private static final String REFRESH_KEY_PREFIX = "refresh:";
+    private static final String LOGIN_ATTEMPTS_PREFIX = "login:attempts:";
+    private static final String FORGOT_ATTEMPTS_PREFIX = "forgot:attempts:";
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+    private static final int MAX_FORGOT_ATTEMPTS = 3;
+    private static final long LOCKOUT_MINUTES = 15;
 
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
@@ -59,21 +64,29 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenResponse login(LoginRequest request) {
-        Customer customer = customerRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "Invalid email or password"));
-        if (!passwordEncoder.matches(request.getPassword(), customer.getPasswordHash())) {
+        String attemptsKey = LOGIN_ATTEMPTS_PREFIX + request.getEmail();
+        checkRateLimit(attemptsKey, MAX_LOGIN_ATTEMPTS, "Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau " + LOCKOUT_MINUTES + " phút.");
+
+        Customer customer = customerRepository.findByEmail(request.getEmail()).orElse(null);
+        if (customer == null || !passwordEncoder.matches(request.getPassword(), customer.getPasswordHash())) {
+            recordFailedAttempt(attemptsKey);
             throw new AppException(ErrorCode.UNAUTHORIZED, "Invalid email or password");
         }
+        redisTemplate.delete(attemptsKey);
         return issueCustomerTokens(customer);
     }
 
     @Override
     public TokenResponse staffLogin(LoginRequest request) {
-        User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "Invalid email or password"));
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        String attemptsKey = LOGIN_ATTEMPTS_PREFIX + "staff:" + request.getEmail();
+        checkRateLimit(attemptsKey, MAX_LOGIN_ATTEMPTS, "Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau " + LOCKOUT_MINUTES + " phút.");
+
+        User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail()).orElse(null);
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            recordFailedAttempt(attemptsKey);
             throw new AppException(ErrorCode.UNAUTHORIZED, "Invalid email or password");
         }
+        redisTemplate.delete(attemptsKey);
         return issueStaffTokens(user);
     }
 
@@ -122,6 +135,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void forgotPassword(String email) {
+        String attemptsKey = FORGOT_ATTEMPTS_PREFIX + email;
+        checkRateLimit(attemptsKey, MAX_FORGOT_ATTEMPTS, "Quá nhiều yêu cầu. Vui lòng thử lại sau " + LOCKOUT_MINUTES + " phút.");
+        recordFailedAttempt(attemptsKey); // luôn tăng counter, bất kể email có tồn tại hay không
+
         Customer customer = customerRepository.findByEmail(email).orElse(null);
         if (customer == null) return; // silent — chống enumeration
 
@@ -170,6 +187,18 @@ public class AuthServiceImpl implements AuthService {
                 TimeUnit.SECONDS
         );
         return new TokenResponse(accessToken, refreshToken, jwtTokenProvider.getRefreshTokenExpirySeconds());
+    }
+
+    private void checkRateLimit(String key, int maxAttempts, String message) {
+        String value = redisTemplate.opsForValue().get(key);
+        if (value != null && Integer.parseInt(value) >= maxAttempts) {
+            throw new AppException(ErrorCode.TOO_MANY_REQUESTS, message);
+        }
+    }
+
+    private void recordFailedAttempt(String key) {
+        redisTemplate.opsForValue().increment(key);
+        redisTemplate.expire(key, LOCKOUT_MINUTES, TimeUnit.MINUTES);
     }
 
     private TokenResponse issueStaffTokens(User user) {
