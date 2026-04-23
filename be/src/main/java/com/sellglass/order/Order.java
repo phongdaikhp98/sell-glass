@@ -61,6 +61,37 @@ public class Order {
     @Column(name = "payment_proof_url")
     private String paymentProofUrl;
 
+    // Prescription (toa thuốc kính) — all nullable, only set when customer provides
+    @Column(name = "prescription_od_sph", precision = 5, scale = 2)
+    private java.math.BigDecimal prescriptionOdSph;
+
+    @Column(name = "prescription_od_cyl", precision = 5, scale = 2)
+    private java.math.BigDecimal prescriptionOdCyl;
+
+    @Column(name = "prescription_od_axis")
+    private Integer prescriptionOdAxis;
+
+    @Column(name = "prescription_os_sph", precision = 5, scale = 2)
+    private java.math.BigDecimal prescriptionOsSph;
+
+    @Column(name = "prescription_os_cyl", precision = 5, scale = 2)
+    private java.math.BigDecimal prescriptionOsCyl;
+
+    @Column(name = "prescription_os_axis")
+    private Integer prescriptionOsAxis;
+
+    @Column(name = "prescription_pd", precision = 4, scale = 1)
+    private java.math.BigDecimal prescriptionPd;
+
+    @Column(name = "prescription_note")
+    private String prescriptionNote;
+
+    @Column(name = "voucher_code", length = 50)
+    private String voucherCode;
+
+    @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     private String note;
 
     @Column(name = "cancelled_reason")

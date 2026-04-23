@@ -69,5 +69,6 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         variant.setSize(request.getSize());
         variant.setPrice(request.getPrice());
         variant.setActive(request.isActive());
+        variant.setStock(request.getStock());
     }
 }

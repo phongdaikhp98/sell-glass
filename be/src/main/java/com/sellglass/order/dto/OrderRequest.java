@@ -30,6 +30,10 @@ public class OrderRequest {
 
     private String note;
 
+    private String voucherCode;
+
+    private PrescriptionRequest prescription;
+
     @Getter
     @Setter
     @NoArgsConstructor
@@ -37,5 +41,19 @@ public class OrderRequest {
         @NotNull(message = "Product variant ID is required")
         private UUID productVariantId;
         private int quantity = 1;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class PrescriptionRequest {
+        private java.math.BigDecimal odSph;
+        private java.math.BigDecimal odCyl;
+        private Integer odAxis;
+        private java.math.BigDecimal osSph;
+        private java.math.BigDecimal osCyl;
+        private Integer osAxis;
+        private java.math.BigDecimal pd;
+        private String note;
     }
 }

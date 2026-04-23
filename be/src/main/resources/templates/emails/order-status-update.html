@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title th:text="'Đơn hàng ' + ${orderCode} + ' — ' + ${statusLabel}">Cập nhật đơn hàng</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#1a1a1a;padding:24px 32px;text-align:center;">
+              <span style="color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:1px;">Sell Glass</span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 32px;">
+              <p style="margin:0 0 16px;font-size:16px;color:#333333;">Xin chào <strong th:text="${fullName}">Khách hàng</strong>,</p>
+
+              <!-- Status badge -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background-color:#f0f0f0;border-left:4px solid #1a1a1a;border-radius:4px;padding:16px 20px;">
+                    <p style="margin:0 0 4px;font-size:13px;color:#888888;">Trạng thái đơn hàng <strong th:text="${orderCode}">SG-XXXXXXXX</strong></p>
+                    <p style="margin:0;font-size:18px;font-weight:bold;color:#1a1a1a;" th:text="${statusLabel}">Đã xác nhận</p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 24px;font-size:15px;color:#555555;line-height:1.6;" th:text="${statusMessage}">
+                Thông tin trạng thái đơn hàng.
+              </p>
+
+              <!-- Cancelled reason (only shown when present) -->
+              <table th:if="${cancelledReason != null and !cancelledReason.isEmpty()}"
+                     width="100%" cellpadding="0" cellspacing="0"
+                     style="background-color:#fff5f5;border-left:4px solid #e53e3e;border-radius:4px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 6px;font-size:13px;font-weight:bold;color:#c53030;">Lý do hủy</p>
+                    <p style="margin:0;font-size:14px;color:#742a2a;" th:text="${cancelledReason}">Lý do hủy đơn</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                <tr>
+                  <td>
+                    <a th:href="${orderUrl}" href="#"
+                       style="display:inline-block;background-color:#1a1a1a;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;padding:12px 24px;border-radius:6px;">
+                      Xem chi tiết đơn hàng
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <hr style="border:none;border-top:1px solid #eeeeee;margin:0 0 24px;" />
+
+              <p style="margin:0;font-size:13px;color:#aaaaaa;line-height:1.6;">
+                Nếu bạn có thắc mắc, vui lòng liên hệ với chúng tôi qua email hoặc hotline của cửa hàng.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f9f9f9;padding:20px 32px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#bbbbbb;">&copy; 2025 Sell Glass. Tất cả các quyền được bảo lưu.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

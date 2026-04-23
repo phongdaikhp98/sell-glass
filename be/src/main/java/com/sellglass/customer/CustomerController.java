@@ -2,9 +2,11 @@ package com.sellglass.customer;
 
 import com.sellglass.common.response.ApiResponse;
 import com.sellglass.common.response.PageResponse;
+import com.sellglass.customer.dto.ChangePasswordRequest;
 import com.sellglass.customer.dto.CustomerAddressRequest;
 import com.sellglass.customer.dto.CustomerAddressResponse;
 import com.sellglass.customer.dto.CustomerResponse;
+import com.sellglass.customer.dto.UpdateProfileRequest;
 import com.sellglass.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,24 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CustomerResponse>> getProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.success(customerService.getProfile(userDetails.getUserId())));
+    }
+
+    @PatchMapping("/v1/me")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<CustomerResponse>> updateProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                customerService.updateProfile(userDetails.getUserId(), request)));
+    }
+
+    @PostMapping("/v1/me/change-password")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        customerService.changePassword(userDetails.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @GetMapping("/v1/me/addresses")

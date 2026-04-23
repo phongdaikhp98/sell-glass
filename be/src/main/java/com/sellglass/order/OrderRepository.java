@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -41,4 +42,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     @Query(value = "SELECT o.status, COUNT(*) FROM orders o GROUP BY o.status", nativeQuery = true)
     List<Object[]> countByStatus();
+
+    @Query(value = """
+            SELECT * FROM orders
+            WHERE LOWER(LEFT(id::text, 8)) = :suffix
+              AND payment_status != 'PAID'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<Order> findUnpaidByOrderCodeSuffix(@Param("suffix") String suffix);
 }

@@ -3,11 +3,14 @@ package com.sellglass.customer;
 import com.sellglass.common.exception.AppException;
 import com.sellglass.common.exception.ErrorCode;
 import com.sellglass.common.response.PageResponse;
+import com.sellglass.customer.dto.ChangePasswordRequest;
 import com.sellglass.customer.dto.CustomerAddressRequest;
 import com.sellglass.customer.dto.CustomerAddressResponse;
 import com.sellglass.customer.dto.CustomerResponse;
+import com.sellglass.customer.dto.UpdateProfileRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +23,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final CustomerAddressRepository customerAddressRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public PageResponse<CustomerResponse> findAll(Pageable pageable) {
@@ -76,6 +80,28 @@ public class CustomerServiceImpl implements CustomerService {
         address.setAddress(request.getAddress());
         address.setDefault(request.isDefault());
         return CustomerAddressResponse.from(customerAddressRepository.save(address));
+    }
+
+    @Override
+    @Transactional
+    public CustomerResponse updateProfile(UUID customerId, UpdateProfileRequest request) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Customer not found"));
+        customer.setFullName(request.getFullName().trim());
+        customer.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
+        return CustomerResponse.from(customerRepository.save(customer));
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(UUID customerId, ChangePasswordRequest request) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Customer not found"));
+        if (!passwordEncoder.matches(request.getCurrentPassword(), customer.getPasswordHash())) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Mật khẩu hiện tại không đúng");
+        }
+        customer.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        customerRepository.save(customer);
     }
 
     @Override

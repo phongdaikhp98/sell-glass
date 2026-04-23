@@ -20,6 +20,7 @@ public class ProductVariantResponse {
     private String size;
     private BigDecimal price;
     private boolean isActive;
+    private int stock;
 
     public static ProductVariantResponse from(ProductVariant variant) {
         ProductVariantResponse response = new ProductVariantResponse();
@@ -30,6 +31,7 @@ public class ProductVariantResponse {
         response.size = variant.getSize();
         response.price = variant.getPrice();
         response.isActive = variant.isActive();
+        response.stock = variant.getStock();
         return response;
     }
 }

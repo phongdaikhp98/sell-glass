@@ -5,3 +5,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/002-password-reset-tokens.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/003-stock-and-prescription.sql
+      relativeToChangelogFile: false

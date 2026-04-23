@@ -34,4 +34,7 @@ public class ProductVariant {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(nullable = false)
+    private int stock = 0;
 }

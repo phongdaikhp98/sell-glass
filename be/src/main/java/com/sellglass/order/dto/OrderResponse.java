@@ -30,13 +30,16 @@ public class OrderResponse {
     private String deliveryAddress;
     private BigDecimal subtotal;
     private BigDecimal shippingFee;
+    private BigDecimal discountAmount;
     private BigDecimal total;
+    private String voucherCode;
     private PaymentStatus paymentStatus;
     private String note;
     private String cancelledReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OrderItemDetail> items;
+    private PrescriptionInfo prescription;
 
     @Getter
     @Setter
@@ -74,13 +77,47 @@ public class OrderResponse {
         response.deliveryAddress = order.getDeliveryAddress();
         response.subtotal = order.getSubtotal();
         response.shippingFee = order.getShippingFee();
+        response.discountAmount = order.getDiscountAmount();
         response.total = order.getTotal();
+        response.voucherCode = order.getVoucherCode();
         response.paymentStatus = order.getPaymentStatus();
         response.note = order.getNote();
         response.cancelledReason = order.getCancelledReason();
         response.createdAt = order.getCreatedAt();
         response.updatedAt = order.getUpdatedAt();
         response.items = items.stream().map(OrderItemDetail::from).toList();
+        response.prescription = PrescriptionInfo.from(order);
         return response;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class PrescriptionInfo {
+        private java.math.BigDecimal odSph;
+        private java.math.BigDecimal odCyl;
+        private Integer odAxis;
+        private java.math.BigDecimal osSph;
+        private java.math.BigDecimal osCyl;
+        private Integer osAxis;
+        private java.math.BigDecimal pd;
+        private String note;
+
+        public static PrescriptionInfo from(Order order) {
+            if (order.getPrescriptionOdSph() == null && order.getPrescriptionOsSph() == null
+                    && order.getPrescriptionPd() == null) {
+                return null;
+            }
+            PrescriptionInfo info = new PrescriptionInfo();
+            info.odSph = order.getPrescriptionOdSph();
+            info.odCyl = order.getPrescriptionOdCyl();
+            info.odAxis = order.getPrescriptionOdAxis();
+            info.osSph = order.getPrescriptionOsSph();
+            info.osCyl = order.getPrescriptionOsCyl();
+            info.osAxis = order.getPrescriptionOsAxis();
+            info.pd = order.getPrescriptionPd();
+            info.note = order.getPrescriptionNote();
+            return info;
+        }
     }
 }
