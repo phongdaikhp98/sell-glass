@@ -2,9 +2,12 @@ package com.sellglass.customer;
 
 import com.sellglass.common.exception.AppException;
 import com.sellglass.common.exception.ErrorCode;
+import com.sellglass.customer.dto.ChangePasswordRequest;
 import com.sellglass.customer.dto.CustomerAddressRequest;
 import com.sellglass.customer.dto.CustomerAddressResponse;
 import com.sellglass.customer.dto.CustomerResponse;
+import com.sellglass.customer.dto.UpdateProfileRequest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,9 @@ class CustomerServiceImplTest {
 
     @Mock
     private CustomerAddressRepository customerAddressRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private CustomerServiceImpl service;
@@ -208,5 +214,110 @@ class CustomerServiceImplTest {
                 .extracting(e -> ((AppException) e).getErrorCode())
                 .isEqualTo(ErrorCode.FORBIDDEN);
         verify(customerAddressRepository, never()).delete(any(CustomerAddress.class));
+    }
+
+    // ─── updateProfile ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateProfile should update fullName and phone then save")
+    void updateProfile_success() {
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("  Tran Thi B  ");
+        request.setPhone("0912345678");
+
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CustomerResponse result = service.updateProfile(customerId, request);
+
+        assertThat(result.getFullName()).isEqualTo("Tran Thi B");
+        assertThat(result.getPhone()).isEqualTo("0912345678");
+        verify(customerRepository).save(customer);
+    }
+
+    @Test
+    @DisplayName("updateProfile should set phone to null when request phone is null")
+    void updateProfile_nullPhone() {
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("Tran Thi B");
+        request.setPhone(null);
+
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateProfile(customerId, request);
+
+        assertThat(customer.getPhone()).isNull();
+        verify(customerRepository).save(customer);
+    }
+
+    @Test
+    @DisplayName("updateProfile should throw NOT_FOUND when customer missing")
+    void updateProfile_notFound() {
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("X");
+
+        when(customerRepository.findById(customerId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateProfile(customerId, request))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(customerRepository, never()).save(any());
+    }
+
+    // ─── changePassword ────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("changePassword should encode and save new password when current password is correct")
+    void changePassword_success() {
+        customer.setPasswordHash("hashed-old");
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("old-pass");
+        request.setNewPassword("new-pass123");
+
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(passwordEncoder.matches("old-pass", "hashed-old")).thenReturn(true);
+        when(passwordEncoder.encode("new-pass123")).thenReturn("hashed-new");
+
+        service.changePassword(customerId, request);
+
+        assertThat(customer.getPasswordHash()).isEqualTo("hashed-new");
+        verify(customerRepository).save(customer);
+    }
+
+    @Test
+    @DisplayName("changePassword should throw BAD_REQUEST when current password is wrong")
+    void changePassword_wrongPassword() {
+        customer.setPasswordHash("hashed-old");
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("wrong-pass");
+        request.setNewPassword("new-pass123");
+
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(passwordEncoder.matches("wrong-pass", "hashed-old")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.changePassword(customerId, request))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(customerRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    @DisplayName("changePassword should throw NOT_FOUND when customer missing")
+    void changePassword_notFound() {
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("old");
+        request.setNewPassword("new");
+
+        when(customerRepository.findById(customerId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.changePassword(customerId, request))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(customerRepository, never()).save(any());
     }
 }

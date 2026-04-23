@@ -12,6 +12,7 @@ import com.sellglass.customer.Customer;
 import com.sellglass.customer.CustomerRepository;
 import com.sellglass.mail.MailService;
 import com.sellglass.order.dto.OrderRequest;
+import com.sellglass.voucher.VoucherService;
 import com.sellglass.order.dto.OrderResponse;
 import com.sellglass.order.dto.OrderStatusRequest;
 import com.sellglass.order.dto.PaymentStatusRequest;
@@ -27,6 +28,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +49,7 @@ class OrderServiceImplTest {
     @Mock private ProductRepository productRepository;
     @Mock private CustomerRepository customerRepository;
     @Mock private MailService mailService;
+    @Mock private VoucherService voucherService;
 
     @InjectMocks
     private OrderServiceImpl service;
@@ -53,6 +59,7 @@ class OrderServiceImplTest {
     private UUID variantId;
     private UUID productId;
     private UUID orderId;
+    private Pageable pageable;
 
     private Branch activeBranch;
     private ProductVariant variant;
@@ -63,10 +70,11 @@ class OrderServiceImplTest {
     @BeforeEach
     void setUp() {
         customerId = UUID.randomUUID();
-        branchId = UUID.randomUUID();
-        variantId = UUID.randomUUID();
-        productId = UUID.randomUUID();
-        orderId = UUID.randomUUID();
+        branchId   = UUID.randomUUID();
+        variantId  = UUID.randomUUID();
+        productId  = UUID.randomUUID();
+        orderId    = UUID.randomUUID();
+        pageable   = PageRequest.of(0, 10);
 
         activeBranch = new Branch();
         activeBranch.setId(branchId);
@@ -82,6 +90,7 @@ class OrderServiceImplTest {
         variant.setProductId(productId);
         variant.setSku("SKU-001");
         variant.setPrice(new BigDecimal("500000"));
+        variant.setStock(10);
 
         customer = new Customer();
         customer.setId(customerId);
@@ -336,5 +345,60 @@ class OrderServiceImplTest {
                 .isInstanceOf(AppException.class)
                 .extracting(e -> ((AppException) e).getErrorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    // ─── findByCustomer ────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("findByCustomer should return paginated orders for customer with branch name")
+    void findByCustomer_success() {
+        Page<Order> page = new PageImpl<>(List.of(savedOrder));
+        when(orderRepository.findByCustomerId(customerId, pageable)).thenReturn(page);
+        when(orderItemRepository.findByOrderIdIn(any())).thenReturn(List.of());
+        when(branchRepository.findAllById(any())).thenReturn(List.of(activeBranch));
+
+        var result = service.findByCustomer(customerId, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(orderId);
+        assertThat(result.getContent().get(0).getBranchName()).isEqualTo("Branch A");
+    }
+
+    @Test
+    @DisplayName("findByCustomer should return empty page when customer has no orders")
+    void findByCustomer_empty() {
+        when(orderRepository.findByCustomerId(customerId, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        var result = service.findByCustomer(customerId, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
+    // ─── findAll ───────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("findAll should return all orders paginated with branch names")
+    void findAll_success() {
+        Page<Order> page = new PageImpl<>(List.of(savedOrder));
+        when(orderRepository.findAll(pageable)).thenReturn(page);
+        when(orderItemRepository.findByOrderIdIn(any())).thenReturn(List.of());
+        when(branchRepository.findAllById(any())).thenReturn(List.of(activeBranch));
+
+        var result = service.findAll(pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(orderId);
+    }
+
+    @Test
+    @DisplayName("findAll should return empty page when no orders exist")
+    void findAll_empty() {
+        when(orderRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of()));
+
+        var result = service.findAll(pageable);
+
+        assertThat(result.getContent()).isEmpty();
     }
 }

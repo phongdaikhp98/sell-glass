@@ -9,7 +9,10 @@ import com.sellglass.customer.Customer;
 import com.sellglass.customer.CustomerRepository;
 import com.sellglass.mail.MailService;
 import com.sellglass.security.JwtTokenProvider;
+import com.sellglass.user.Role;
+import com.sellglass.user.User;
 import com.sellglass.user.UserRepository;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,18 +70,29 @@ class AuthServiceImplTest {
     private AuthServiceImpl service;
 
     private UUID customerId;
+    private UUID staffId;
     private Customer customer;
+    private User staffUser;
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(service, "frontendUrl", "http://localhost:3000");
 
         customerId = UUID.randomUUID();
+        staffId    = UUID.randomUUID();
+
         customer = new Customer();
         customer.setId(customerId);
         customer.setFullName("Nguyen Van A");
         customer.setEmail("a@example.com");
         customer.setPasswordHash("hashed");
+
+        staffUser = new User();
+        staffUser.setId(staffId);
+        staffUser.setEmail("staff@example.com");
+        staffUser.setPasswordHash("staff-hashed");
+        staffUser.setRole(Role.STAFF);
+        staffUser.setActive(true);
     }
 
     @Test
@@ -290,5 +304,127 @@ class AuthServiceImplTest {
         service.logout("bad");
 
         verify(redisTemplate, never()).delete(anyString());
+    }
+
+    // ─── staffLogin ────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("staffLogin should issue tokens on valid credentials")
+    void staffLogin_success() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("staff@example.com");
+        request.setPassword("staff-pass");
+
+        when(userRepository.findByEmailAndIsActiveTrue("staff@example.com")).thenReturn(Optional.of(staffUser));
+        when(passwordEncoder.matches("staff-pass", "staff-hashed")).thenReturn(true);
+        when(jwtTokenProvider.generateAccessToken(any(), anyString(), anyString(), anyString()))
+                .thenReturn("staff-access-token");
+        when(jwtTokenProvider.generateRefreshToken(any(), anyString())).thenReturn("staff-refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpirySeconds()).thenReturn(3600L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        TokenResponse result = service.staffLogin(request);
+
+        assertThat(result.getAccessToken()).isEqualTo("staff-access-token");
+        assertThat(result.getRefreshToken()).isEqualTo("staff-refresh-token");
+        verify(valueOperations).set(eq("refresh:" + staffId), eq("staff-refresh-token"), eq(3600L), eq(TimeUnit.SECONDS));
+    }
+
+    @Test
+    @DisplayName("staffLogin should throw UNAUTHORIZED when email not found or inactive")
+    void staffLogin_emailNotFound() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("missing@example.com");
+        request.setPassword("pass");
+
+        when(userRepository.findByEmailAndIsActiveTrue("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.staffLogin(request))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("staffLogin should throw UNAUTHORIZED on wrong password")
+    void staffLogin_wrongPassword() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("staff@example.com");
+        request.setPassword("wrong");
+
+        when(userRepository.findByEmailAndIsActiveTrue("staff@example.com")).thenReturn(Optional.of(staffUser));
+        when(passwordEncoder.matches("wrong", "staff-hashed")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.staffLogin(request))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    // ─── refresh ───────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("refresh should throw UNAUTHORIZED when token fails validation")
+    void refresh_invalidToken() {
+        when(jwtTokenProvider.validateToken("bad-refresh")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.refresh("bad-refresh"))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("refresh should throw UNAUTHORIZED when stored token does not match")
+    void refresh_storedTokenMismatch() {
+        Claims claims = mock(Claims.class);
+        when(jwtTokenProvider.validateToken("stale-token")).thenReturn(true);
+        when(jwtTokenProvider.parseToken("stale-token")).thenReturn(claims);
+        when(claims.get("type", String.class)).thenReturn("refresh");
+        when(claims.get("userId", String.class)).thenReturn(customerId.toString());
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("refresh:" + customerId)).thenReturn("different-token");
+
+        assertThatThrownBy(() -> service.refresh("stale-token"))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("refresh should re-issue tokens for customer when token is valid")
+    void refresh_customer_success() {
+        Claims claims = mock(Claims.class);
+        when(jwtTokenProvider.validateToken("valid-refresh")).thenReturn(true);
+        when(jwtTokenProvider.parseToken("valid-refresh")).thenReturn(claims);
+        when(claims.get("type", String.class)).thenReturn("refresh");
+        when(claims.get("userId", String.class)).thenReturn(customerId.toString());
+        when(claims.getSubject()).thenReturn("customer:a@example.com");
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("refresh:" + customerId)).thenReturn("valid-refresh");
+        when(customerRepository.findByEmail("a@example.com")).thenReturn(Optional.of(customer));
+        when(jwtTokenProvider.generateAccessToken(any(), anyString(), anyString(), anyString()))
+                .thenReturn("new-access-token");
+        when(jwtTokenProvider.generateRefreshToken(any(), anyString())).thenReturn("new-refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpirySeconds()).thenReturn(3600L);
+
+        TokenResponse result = service.refresh("valid-refresh");
+
+        assertThat(result.getAccessToken()).isEqualTo("new-access-token");
+        assertThat(result.getRefreshToken()).isEqualTo("new-refresh-token");
+    }
+
+    @Test
+    @DisplayName("refresh should throw UNAUTHORIZED when token type is not refresh")
+    void refresh_wrongTokenType() {
+        Claims claims = mock(Claims.class);
+        when(jwtTokenProvider.validateToken("access-as-refresh")).thenReturn(true);
+        when(jwtTokenProvider.parseToken("access-as-refresh")).thenReturn(claims);
+        when(claims.get("type", String.class)).thenReturn("access");
+
+        assertThatThrownBy(() -> service.refresh("access-as-refresh"))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
     }
 }
